@@ -2,7 +2,8 @@
 
 Track every recurring subscription you're paying for. See exactly how much money is leaking each month, broken down by category and currency. Built solo with [Claude Code](https://claude.com/code) and the [Superpowers](https://github.com/obra/superpowers) plugin in one session.
 
-![Dashboard preview](./screenshot.png)
+<img width="1232" height="1036" alt="screenshot" src="https://github.com/user-attachments/assets/25b61c16-5c53-47fe-a449-f757118a7521" />
+
 
 ## What It Does
 
