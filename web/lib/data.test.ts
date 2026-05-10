@@ -301,3 +301,30 @@ describe('monthlyCost / yearlyCost', () => {
     expect(yearlyCost(sub)).toBe(99);
   });
 });
+
+describe('groupByCurrency with cycle', () => {
+  it('normalizes a yearly sub to monthly when summing totalMonthly', () => {
+    const subs = [
+      { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 1 },
+      { name: 'B', cost: 120, currency: 'USD', category: 'y', renewalDay: 1, renewalMonth: 6, cycle: 'yearly' as const },
+    ];
+    const [usd] = groupByCurrency(subs);
+    expect(usd.totalMonthly).toBeCloseTo(20, 2); // 10 + 120/12
+    expect(usd.totalYearly).toBeCloseTo(240, 2); // 20 * 12
+  });
+
+  it('uses monthly-equivalent in byCategory and bySubscription', () => {
+    const subs = [
+      { name: 'YearlySub', cost: 240, currency: 'USD', category: 'cat1', renewalDay: 1, renewalMonth: 1, cycle: 'yearly' as const },
+      { name: 'MonthlySub', cost: 5, currency: 'USD', category: 'cat2', renewalDay: 1 },
+    ];
+    const [usd] = groupByCurrency(subs);
+    // YearlySub monthly-equivalent = 240/12 = 20, beats MonthlySub at 5
+    expect(usd.bySubscription[0]).toEqual({ name: 'YearlySub', monthly: 20 });
+    expect(usd.bySubscription[1]).toEqual({ name: 'MonthlySub', monthly: 5 });
+    expect(usd.byCategory).toEqual([
+      { category: 'cat1', monthly: 20 },
+      { category: 'cat2', monthly: 5 },
+    ]);
+  });
+});

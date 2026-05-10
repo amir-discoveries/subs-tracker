@@ -77,14 +77,15 @@ export function groupByCurrency(subs: Subscription[]): CurrencyBucket[] {
     { totalMonthly: number; cats: Map<string, number>; subs: { name: string; monthly: number }[] }
   >();
   for (const s of subs) {
+    const m = monthlyCost(s);
     let bucket = byCur.get(s.currency);
     if (!bucket) {
       bucket = { totalMonthly: 0, cats: new Map(), subs: [] };
       byCur.set(s.currency, bucket);
     }
-    bucket.totalMonthly += s.cost;
-    bucket.cats.set(s.category, (bucket.cats.get(s.category) ?? 0) + s.cost);
-    bucket.subs.push({ name: s.name, monthly: s.cost });
+    bucket.totalMonthly += m;
+    bucket.cats.set(s.category, (bucket.cats.get(s.category) ?? 0) + m);
+    bucket.subs.push({ name: s.name, monthly: m });
   }
   const result: CurrencyBucket[] = [];
   for (const [currency, bucket] of byCur) {
