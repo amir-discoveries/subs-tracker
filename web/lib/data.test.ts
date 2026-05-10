@@ -76,3 +76,64 @@ describe('loadSubscriptions', () => {
     expect(result).toEqual([{ name: 'A', cost: 1, currency: 'USD', category: 'x', renewalDay: 1 }]);
   });
 });
+
+import { groupByCurrency } from './data';
+
+describe('groupByCurrency', () => {
+  it('returns one bucket per currency with correct totals', () => {
+    const subs = [
+      { name: 'Netflix', cost: 15.99, currency: 'USD', category: 'entertainment', renewalDay: 5 },
+      { name: 'Spotify', cost: 9.99, currency: 'USD', category: 'music', renewalDay: 12 },
+      { name: 'Spiegel', cost: 5, currency: 'EUR', category: 'news', renewalDay: 1 },
+    ];
+    const buckets = groupByCurrency(subs);
+    expect(buckets).toHaveLength(2);
+    const usd = buckets.find((b) => b.currency === 'USD')!;
+    const eur = buckets.find((b) => b.currency === 'EUR')!;
+    expect(usd.totalMonthly).toBeCloseTo(25.98, 2);
+    expect(usd.totalYearly).toBeCloseTo(25.98 * 12, 2);
+    expect(eur.totalMonthly).toBe(5);
+    expect(eur.totalYearly).toBe(60);
+  });
+
+  it('sorts buckets by totalMonthly desc', () => {
+    const subs = [
+      { name: 'Small', cost: 1, currency: 'EUR', category: 'x', renewalDay: 1 },
+      { name: 'Big', cost: 100, currency: 'USD', category: 'x', renewalDay: 1 },
+    ];
+    const buckets = groupByCurrency(subs);
+    expect(buckets.map((b) => b.currency)).toEqual(['USD', 'EUR']);
+  });
+
+  it('sums categories within a bucket', () => {
+    const subs = [
+      { name: 'Netflix', cost: 15, currency: 'USD', category: 'entertainment', renewalDay: 5 },
+      { name: 'Hulu', cost: 10, currency: 'USD', category: 'entertainment', renewalDay: 8 },
+      { name: 'Spotify', cost: 9, currency: 'USD', category: 'music', renewalDay: 12 },
+    ];
+    const [usd] = groupByCurrency(subs);
+    expect(usd.byCategory).toEqual([
+      { category: 'entertainment', monthly: 25 },
+      { category: 'music', monthly: 9 },
+    ]);
+  });
+
+  it('sorts byCategory and bySubscription desc by monthly', () => {
+    const subs = [
+      { name: 'Cheap', cost: 1, currency: 'USD', category: 'a', renewalDay: 1 },
+      { name: 'Mid', cost: 10, currency: 'USD', category: 'b', renewalDay: 1 },
+      { name: 'Pricey', cost: 100, currency: 'USD', category: 'c', renewalDay: 1 },
+    ];
+    const [usd] = groupByCurrency(subs);
+    expect(usd.bySubscription).toEqual([
+      { name: 'Pricey', monthly: 100 },
+      { name: 'Mid', monthly: 10 },
+      { name: 'Cheap', monthly: 1 },
+    ]);
+    expect(usd.byCategory.map((c) => c.category)).toEqual(['c', 'b', 'a']);
+  });
+
+  it('returns [] for empty input', () => {
+    expect(groupByCurrency([])).toEqual([]);
+  });
+});
