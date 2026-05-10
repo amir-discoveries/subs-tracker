@@ -202,7 +202,7 @@ describe('getUpcoming', () => {
 });
 
 import { saveSubscriptions } from './data';
-import { readFile, readdir, mkdir, writeFile as writeFileFn } from 'node:fs/promises';
+import { readFile, readdir, writeFile as writeFileFn } from 'node:fs/promises';
 
 describe('saveSubscriptions', () => {
   let dir: string;

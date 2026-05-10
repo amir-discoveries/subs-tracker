@@ -35,6 +35,7 @@ export function AddSubscriptionDialog() {
 
   useEffect(() => {
     if (state && "ok" in state && state.ok) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- close-on-success: React 19 has no first-class API for "consume action result then close dialog"; effect-driven close is the documented idiom.
       setOpen(false);
     }
   }, [state]);
