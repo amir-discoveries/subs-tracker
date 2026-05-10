@@ -8,6 +8,7 @@ export type Subscription = {
   currency: string;
   category: string;
   renewalDay: number;
+  addedAt?: string;
 };
 
 function resolvePath(explicit?: string): string {

@@ -13,25 +13,30 @@ function getString(form: FormData, key: string): string {
 function validate(form: FormData): { sub: Subscription } | { error: string } {
   const name = getString(form, "name");
   if (!name) return { error: "Name is required." };
-  if (name.length > 100) return { error: "Name must be 100 characters or fewer." };
 
   const costStr = getString(form, "cost");
+  if (!/^\d+(\.\d{1,2})?$/.test(costStr)) {
+    return { error: "Cost must be a positive number with up to 2 decimals." };
+  }
   const cost = Number.parseFloat(costStr);
-  if (!Number.isFinite(cost) || cost <= 0) return { error: "Cost must be greater than 0." };
-  if (cost > 1_000_000) return { error: "Cost is unrealistically large." };
+  if (cost <= 0) return { error: "Cost must be greater than 0." };
 
-  const currency = getString(form, "currency");
-  if (!currency) return { error: "Currency is required." };
-  if (currency.length > 10) return { error: "Currency must be 10 characters or fewer." };
+  const currencyRaw = getString(form, "currency");
+  const currency = (currencyRaw || "USD").toUpperCase();
+  if (!/^[A-Z]{3}$/.test(currency)) {
+    return { error: "Currency must be 3 letters (e.g., USD, EUR)." };
+  }
 
   const category = getString(form, "category");
   if (!category) return { error: "Category is required." };
-  if (category.length > 50) return { error: "Category must be 50 characters or fewer." };
 
   const renewalDayStr = getString(form, "renewalDay");
+  if (!/^\d+$/.test(renewalDayStr)) {
+    return { error: "Renewal day must be an integer between 1 and 31." };
+  }
   const renewalDay = Number.parseInt(renewalDayStr, 10);
-  if (!Number.isInteger(renewalDay) || renewalDay < 1 || renewalDay > 31) {
-    return { error: "Renewal day must be a whole number between 1 and 31." };
+  if (renewalDay < 1 || renewalDay > 31) {
+    return { error: "Renewal day must be an integer between 1 and 31." };
   }
 
   return { sub: { name, cost, currency, category, renewalDay } };
@@ -53,8 +58,13 @@ export async function addSubscription(_prevState: AddState, formData: FormData):
     return { error: `A subscription named "${validated.sub.name}" already exists.` };
   }
 
+  const newSub: Subscription = {
+    ...validated.sub,
+    addedAt: new Date().toISOString(),
+  };
+
   try {
-    await saveSubscriptions([...subs, validated.sub]);
+    await saveSubscriptions([...subs, newSub]);
   } catch (err) {
     return { error: `Couldn't save: ${(err as Error).message}` };
   }
