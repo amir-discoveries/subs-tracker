@@ -132,6 +132,21 @@ function nextRenewal(renewalDay: number, today: Date): Date {
   return new Date(nextYear, nextMonth, nextClamped);
 }
 
+function nextYearlyRenewal(renewalMonth: number, renewalDay: number, today: Date): Date {
+  const year = today.getFullYear();
+  const monthIndex = renewalMonth - 1;
+
+  // Try this year first.
+  const thisYearClamped = Math.min(renewalDay, daysInMonth(year, monthIndex));
+  const thisYear = new Date(year, monthIndex, thisYearClamped);
+  if (daysUntil(thisYear, today) >= 0) return thisYear;
+
+  // Otherwise, next year.
+  const nextYear = year + 1;
+  const nextYearClamped = Math.min(renewalDay, daysInMonth(nextYear, monthIndex));
+  return new Date(nextYear, monthIndex, nextYearClamped);
+}
+
 function daysUntil(date: Date, today: Date): number {
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -148,7 +163,10 @@ function formatDate(date: Date): string {
 export function getUpcoming(subs: Subscription[], now: Date = new Date()): UpcomingItem[] {
   return subs
     .map((sub) => {
-      const date = nextRenewal(sub.renewalDay, now);
+      const date =
+        sub.cycle === "yearly" && typeof sub.renewalMonth === "number"
+          ? nextYearlyRenewal(sub.renewalMonth, sub.renewalDay, now)
+          : nextRenewal(sub.renewalDay, now);
       return {
         name: sub.name,
         date: formatDate(date),

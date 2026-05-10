@@ -328,3 +328,58 @@ describe('groupByCurrency with cycle', () => {
     ]);
   });
 });
+
+describe('getUpcoming with yearly cycle', () => {
+  it('includes a yearly sub renewing in 5 days', () => {
+    const today = new Date(2026, 4, 10); // 2026-05-10
+    const subs = [
+      { name: 'Domain', cost: 12, currency: 'USD', category: 'x', renewalDay: 15, renewalMonth: 5, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-05-15');
+    expect(result[0].daysUntil).toBe(5);
+    expect(result[0].cost).toBe(12);
+  });
+
+  it('excludes a yearly sub when this year already passed (rolls to next year)', () => {
+    const today = new Date(2026, 4, 10); // May 10
+    const subs = [
+      { name: 'Old', cost: 50, currency: 'USD', category: 'x', renewalDay: 1, renewalMonth: 1, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([]); // next renewal is 2027-01-01, way more than 7 days
+  });
+
+  it('includes a yearly sub renewing today', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [
+      { name: 'Today', cost: 5, currency: 'USD', category: 'x', renewalDay: 10, renewalMonth: 5, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysUntil).toBe(0);
+    expect(result[0].date).toBe('2026-05-10');
+  });
+
+  it('clamps Feb 29 to Feb 28 in non-leap years', () => {
+    const today = new Date(2026, 1, 25); // 2026-02-25 (non-leap)
+    const subs = [
+      { name: 'Feb29', cost: 1, currency: 'USD', category: 'x', renewalDay: 29, renewalMonth: 2, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-02-28');
+    expect(result[0].daysUntil).toBe(3);
+  });
+
+  it('still works for monthly subs (regression check)', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [
+      { name: 'Monthly', cost: 5, currency: 'USD', category: 'x', renewalDay: 12 },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysUntil).toBe(2);
+  });
+});
