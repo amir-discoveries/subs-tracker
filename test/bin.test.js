@@ -1,17 +1,17 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, writeFile, mkdir } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, mkdir, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
 const BIN = resolve(import.meta.dirname, '..', 'bin', 'subs.js');
 
-function runBin(args, env = {}) {
+function runBin(args, env = {}, stdinInput = null) {
   return new Promise((resolveFn, reject) => {
     const child = spawn(process.execPath, [BIN, ...args], {
       env: { ...process.env, ...env },
-      stdio: ['ignore', 'pipe', 'pipe'],
+      stdio: [stdinInput == null ? 'ignore' : 'pipe', 'pipe', 'pipe'],
     });
     const out = [];
     const err = [];
@@ -25,6 +25,9 @@ function runBin(args, env = {}) {
         stderr: Buffer.concat(err).toString('utf8'),
       });
     });
+    if (stdinInput != null) {
+      child.stdin.end(stdinInput);
+    }
   });
 }
 
@@ -76,6 +79,24 @@ test('bin: remove with non-existent name exits 1', async () => {
     const { code, stderr } = await runBin(['remove', 'Ghost'], { HOME: home });
     assert.equal(code, 1);
     assert.match(stderr, /not found/);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
+test('bin: add via piped stdin saves all 5 fields', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'subs-bin-'));
+  try {
+    const input = 'Netflix\n15.99\nUSD\nEntertainment\n14\n';
+    const { code, stdout } = await runBin(['add'], { HOME: home }, input);
+    assert.equal(code, 0);
+    assert.match(stdout, /Added "Netflix"/);
+    const data = JSON.parse(await readFile(join(home, '.subs', 'data.json'), 'utf8'));
+    assert.equal(data.subscriptions.length, 1);
+    assert.deepEqual(
+      { ...data.subscriptions[0], addedAt: 'redacted' },
+      { name: 'Netflix', cost: 15.99, currency: 'USD', category: 'Entertainment', renewalDay: 14, addedAt: 'redacted' },
+    );
   } finally {
     await rm(home, { recursive: true, force: true });
   }
