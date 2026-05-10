@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { addSubscription, type AddState } from "@/app/actions";
 import { Button } from "@/components/ui/button";
@@ -26,24 +26,33 @@ function SubmitButton() {
 
 export function AddSubscriptionDialog() {
   const [open, setOpen] = useState(false);
-  const [state, formAction] = useActionState<AddState, FormData>(addSubscription, null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [submittedSinceOpen, setSubmittedSinceOpen] = useState(false);
+  const wrappedAction = async (prevState: AddState, formData: FormData): Promise<AddState> => {
+    setSubmittedSinceOpen(true);
+    return addSubscription(prevState, formData);
+  };
+  const [state, formAction] = useActionState<AddState, FormData>(wrappedAction, null);
 
   useEffect(() => {
     if (state && "ok" in state && state.ok) {
-      formRef.current?.reset();
       setOpen(false);
     }
   }, [state]);
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setSubmittedSinceOpen(false);
+      }}
+    >
       <DialogTrigger render={<Button>+ Add subscription</Button>} />
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add a subscription</DialogTitle>
         </DialogHeader>
-        <form ref={formRef} action={formAction} className="space-y-4">
+        <form action={formAction} className="space-y-4">
           <div className="space-y-1">
             <Label htmlFor="name">Name</Label>
             <Input id="name" name="name" required maxLength={100} />
@@ -82,8 +91,8 @@ export function AddSubscriptionDialog() {
               />
             </div>
           </div>
-          {state && "error" in state && (
-            <p className="text-sm text-destructive">{state.error}</p>
+          {submittedSinceOpen && state && "error" in state && (
+            <p className="text-sm text-destructive" role="alert">{state.error}</p>
           )}
           <DialogFooter>
             <SubmitButton />
