@@ -8,7 +8,7 @@ type Props = {
   currency: string;
 };
 
-const COLORS = ["#2563eb", "#16a34a", "#f59e0b", "#dc2626", "#9333ea", "#0891b2", "#65a30d", "#db2777"];
+const COLORS = ["#c2410c", "#a16207", "#65a30d", "#0e7490", "#7e22ce", "#be185d", "#0891b2", "#b45309"];
 
 export function CategoryPie({ data, currency }: Props) {
   return (

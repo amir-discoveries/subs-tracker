@@ -13,7 +13,7 @@ export function UpcomingList({ items }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Upcoming this week</CardTitle>
+        <CardTitle className="font-heading">Upcoming this week</CardTitle>
       </CardHeader>
       <CardContent>
         {items.length === 0 ? (

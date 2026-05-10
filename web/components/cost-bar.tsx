@@ -23,7 +23,7 @@ export function CostBar({ data, currency }: Props) {
               <XAxis type="number" tickFormatter={(v) => Number(v).toFixed(0)} />
               <YAxis type="category" dataKey="name" width={120} />
               <Tooltip formatter={(value) => `${Number(value).toFixed(2)} ${currency}/mo`} />
-              <Bar dataKey="monthly" fill="#2563eb" />
+              <Bar dataKey="monthly" fill="#c2410c" />
             </BarChart>
           </ResponsiveContainer>
         </div>
