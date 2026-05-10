@@ -84,6 +84,17 @@ test('bin: remove with non-existent name exits 1', async () => {
   }
 });
 
+test('bin: add with truncated stdin exits 1 cleanly (no infinite loop)', async () => {
+  const home = await mkdtemp(join(tmpdir(), 'subs-bin-'));
+  try {
+    const { code, stderr } = await runBin(['add'], { HOME: home }, 'Netflix\n');
+    assert.equal(code, 1);
+    assert.match(stderr, /Input ended before all prompts/);
+  } finally {
+    await rm(home, { recursive: true, force: true });
+  }
+});
+
 test('bin: add via piped stdin saves all 5 fields', async () => {
   const home = await mkdtemp(join(tmpdir(), 'subs-bin-'));
   try {
