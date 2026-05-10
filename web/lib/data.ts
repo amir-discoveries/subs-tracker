@@ -1,6 +1,6 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export type Subscription = {
   name: string;
@@ -8,12 +8,22 @@ export type Subscription = {
   currency: string;
   category: string;
   renewalDay: number;
+  addedAt?: string;
 };
 
 function resolvePath(explicit?: string): string {
   if (explicit) return explicit;
   if (process.env.SUBS_DATA_PATH) return process.env.SUBS_DATA_PATH;
   return join(homedir(), '.subs', 'data.json');
+}
+
+export async function saveSubscriptions(subs: Subscription[], path?: string): Promise<void> {
+  const resolved = resolvePath(path);
+  await mkdir(dirname(resolved), { recursive: true });
+  const tmp = `${resolved}.tmp`;
+  const payload = JSON.stringify({ version: 1, subscriptions: subs }, null, 2);
+  await writeFile(tmp, payload, 'utf8');
+  await rename(tmp, resolved);
 }
 
 export async function loadSubscriptions(path?: string): Promise<Subscription[]> {

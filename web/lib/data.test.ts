@@ -200,3 +200,74 @@ describe('getUpcoming', () => {
     expect(getUpcoming(subs, today)).toEqual([]);
   });
 });
+
+import { saveSubscriptions } from './data';
+import { readFile, readdir, writeFile as writeFileFn } from 'node:fs/promises';
+
+describe('saveSubscriptions', () => {
+  let dir: string;
+  let path: string;
+
+  beforeEach(async () => {
+    dir = await mkdtemp(join(tmpdir(), 'subs-save-test-'));
+    path = join(dir, 'data.json');
+  });
+
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+    delete process.env.SUBS_DATA_PATH;
+  });
+
+  it('writes a file with version 1 and the subscriptions array', async () => {
+    const subs = [
+      { name: 'Netflix', cost: 15.99, currency: 'USD', category: 'entertainment', renewalDay: 5 },
+    ];
+    await saveSubscriptions(subs, path);
+    const raw = await readFile(path, 'utf8');
+    expect(JSON.parse(raw)).toEqual({ version: 1, subscriptions: subs });
+  });
+
+  it('round-trips with loadSubscriptions', async () => {
+    const subs = [
+      { name: 'A', cost: 1, currency: 'USD', category: 'x', renewalDay: 1 },
+      { name: 'B', cost: 2, currency: 'EUR', category: 'y', renewalDay: 15 },
+    ];
+    await saveSubscriptions(subs, path);
+    const loaded = await loadSubscriptions(path);
+    expect(loaded).toEqual(subs);
+  });
+
+  it('creates the parent directory if it does not exist', async () => {
+    const nested = join(dir, 'nested', 'deeper', 'data.json');
+    await saveSubscriptions([], nested);
+    const raw = await readFile(nested, 'utf8');
+    expect(JSON.parse(raw)).toEqual({ version: 1, subscriptions: [] });
+  });
+
+  it('leaves no .tmp file behind after a successful save', async () => {
+    await saveSubscriptions(
+      [{ name: 'A', cost: 1, currency: 'USD', category: 'x', renewalDay: 1 }],
+      path,
+    );
+    const entries = await readdir(dir);
+    expect(entries.filter((e) => e.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('honors SUBS_DATA_PATH when no explicit path is given', async () => {
+    process.env.SUBS_DATA_PATH = path;
+    await saveSubscriptions([{ name: 'A', cost: 1, currency: 'USD', category: 'x', renewalDay: 1 }]);
+    const raw = await readFile(path, 'utf8');
+    expect(JSON.parse(raw).subscriptions).toHaveLength(1);
+  });
+
+  it('overwrites an existing file', async () => {
+    await writeFileFn(path, '"garbage"', 'utf8');
+    await saveSubscriptions(
+      [{ name: 'A', cost: 1, currency: 'USD', category: 'x', renewalDay: 1 }],
+      path,
+    );
+    const parsed = JSON.parse(await readFile(path, 'utf8'));
+    expect(parsed.version).toBe(1);
+    expect(parsed.subscriptions).toHaveLength(1);
+  });
+});
