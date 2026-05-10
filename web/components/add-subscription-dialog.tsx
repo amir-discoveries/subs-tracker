@@ -45,11 +45,23 @@ function SubmitButton() {
   );
 }
 
+function formatISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 export function AddSubscriptionDialog() {
   const [open, setOpen] = useState(false);
   const [submittedSinceOpen, setSubmittedSinceOpen] = useState(false);
   const [cycle, setCycle] = useState<"monthly" | "yearly">("monthly");
   const [renewalMode, setRenewalMode] = useState<"date" | "days">("date");
+
+  const todayISO = formatISODate(new Date());
+  const maxDate = new Date();
+  maxDate.setDate(maxDate.getDate() + 730);
+  const maxISO = formatISODate(maxDate);
 
   const wrappedAction = async (prevState: AddState, formData: FormData): Promise<AddState> => {
     setSubmittedSinceOpen(true);
@@ -152,6 +164,8 @@ export function AddSubscriptionDialog() {
                 <Input
                   type="date"
                   name="renewalDate"
+                  min={todayISO}
+                  max={maxISO}
                   disabled={renewalMode !== "date"}
                   className="flex-1"
                 />
