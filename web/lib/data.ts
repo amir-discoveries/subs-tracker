@@ -2,14 +2,26 @@ import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+export type Cycle = "monthly" | "yearly";
+
 export type Subscription = {
   name: string;
   cost: number;
   currency: string;
   category: string;
   renewalDay: number;
+  cycle?: Cycle;
+  renewalMonth?: number;
   addedAt?: string;
 };
+
+export function monthlyCost(sub: Subscription): number {
+  return sub.cycle === "yearly" ? sub.cost / 12 : sub.cost;
+}
+
+export function yearlyCost(sub: Subscription): number {
+  return sub.cycle === "yearly" ? sub.cost : sub.cost * 12;
+}
 
 function resolvePath(explicit?: string): string {
   if (explicit) return explicit;
@@ -65,14 +77,15 @@ export function groupByCurrency(subs: Subscription[]): CurrencyBucket[] {
     { totalMonthly: number; cats: Map<string, number>; subs: { name: string; monthly: number }[] }
   >();
   for (const s of subs) {
+    const m = monthlyCost(s);
     let bucket = byCur.get(s.currency);
     if (!bucket) {
       bucket = { totalMonthly: 0, cats: new Map(), subs: [] };
       byCur.set(s.currency, bucket);
     }
-    bucket.totalMonthly += s.cost;
-    bucket.cats.set(s.category, (bucket.cats.get(s.category) ?? 0) + s.cost);
-    bucket.subs.push({ name: s.name, monthly: s.cost });
+    bucket.totalMonthly += m;
+    bucket.cats.set(s.category, (bucket.cats.get(s.category) ?? 0) + m);
+    bucket.subs.push({ name: s.name, monthly: m });
   }
   const result: CurrencyBucket[] = [];
   for (const [currency, bucket] of byCur) {
@@ -119,6 +132,21 @@ function nextRenewal(renewalDay: number, today: Date): Date {
   return new Date(nextYear, nextMonth, nextClamped);
 }
 
+function nextYearlyRenewal(renewalMonth: number, renewalDay: number, today: Date): Date {
+  const year = today.getFullYear();
+  const monthIndex = renewalMonth - 1;
+
+  // Try this year first.
+  const thisYearClamped = Math.min(renewalDay, daysInMonth(year, monthIndex));
+  const thisYear = new Date(year, monthIndex, thisYearClamped);
+  if (daysUntil(thisYear, today) >= 0) return thisYear;
+
+  // Otherwise, next year.
+  const nextYear = year + 1;
+  const nextYearClamped = Math.min(renewalDay, daysInMonth(nextYear, monthIndex));
+  return new Date(nextYear, monthIndex, nextYearClamped);
+}
+
 function daysUntil(date: Date, today: Date): number {
   const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -135,7 +163,10 @@ function formatDate(date: Date): string {
 export function getUpcoming(subs: Subscription[], now: Date = new Date()): UpcomingItem[] {
   return subs
     .map((sub) => {
-      const date = nextRenewal(sub.renewalDay, now);
+      const date =
+        sub.cycle === "yearly" && typeof sub.renewalMonth === "number"
+          ? nextYearlyRenewal(sub.renewalMonth, sub.renewalDay, now)
+          : nextRenewal(sub.renewalDay, now);
       return {
         name: sub.name,
         date: formatDate(date),

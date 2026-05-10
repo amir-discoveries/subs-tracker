@@ -20,7 +20,7 @@ export function TotalsCards({ currency, totalMonthly, totalYearly }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-semibold tabular-nums">
+          <div className="text-4xl font-heading tabular-nums">
             {fmt(totalMonthly)} <span className="text-2xl text-muted-foreground">{currency}</span>
           </div>
         </CardContent>
@@ -32,7 +32,7 @@ export function TotalsCards({ currency, totalMonthly, totalYearly }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="text-4xl font-semibold tabular-nums">
+          <div className="text-4xl font-heading tabular-nums">
             {fmt(totalYearly)} <span className="text-2xl text-muted-foreground">{currency}</span>
           </div>
         </CardContent>

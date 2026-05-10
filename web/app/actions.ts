@@ -1,13 +1,52 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { loadSubscriptions, saveSubscriptions, type Subscription } from "@/lib/data";
+import { loadSubscriptions, saveSubscriptions, type Subscription, type Cycle } from "@/lib/data";
 
 export type AddState = { ok: true } | { error: string } | null;
 
 function getString(form: FormData, key: string): string {
   const v = form.get(key);
   return typeof v === "string" ? v.trim() : "";
+}
+
+type ResolvedRenewal = { renewalDay: number; renewalMonth?: number };
+
+function resolveRenewal(form: FormData, cycle: Cycle): ResolvedRenewal | { error: string } {
+  const dateStr = getString(form, "renewalDate");
+  const daysStr = getString(form, "renewalInDays");
+
+  if (dateStr && daysStr) return { error: "Provide either a date or a number of days, not both." };
+  if (!dateStr && !daysStr) return { error: "Pick a renewal date or enter days from today." };
+
+  let target: Date;
+  if (dateStr) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return { error: "Renewal date must be YYYY-MM-DD." };
+    const [y, m, d] = dateStr.split("-").map(Number);
+    target = new Date(y, m - 1, d);
+    if (Number.isNaN(target.getTime()) || target.getMonth() !== m - 1) {
+      return { error: "Renewal date is not a real calendar date." };
+    }
+  } else {
+    if (!/^\d+$/.test(daysStr)) return { error: "Days from today must be a non-negative whole number." };
+    const n = Number.parseInt(daysStr, 10);
+    if (n > 730) return { error: "Days from today must be 730 or fewer." };
+    const today = new Date();
+    target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + n);
+  }
+
+  // Validate target is in [today, today + 730 days].
+  const today = new Date();
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startTarget = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const diffDays = Math.round((startTarget.getTime() - startToday.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return { error: "Renewal date must be today or later." };
+  if (diffDays > 730) return { error: "Renewal date must be within the next 730 days." };
+
+  if (cycle === "yearly") {
+    return { renewalDay: target.getDate(), renewalMonth: target.getMonth() + 1 };
+  }
+  return { renewalDay: target.getDate() };
 }
 
 function validate(form: FormData): { sub: Subscription } | { error: string } {
@@ -30,16 +69,23 @@ function validate(form: FormData): { sub: Subscription } | { error: string } {
   const category = getString(form, "category");
   if (!category) return { error: "Category is required." };
 
-  const renewalDayStr = getString(form, "renewalDay");
-  if (!/^\d+$/.test(renewalDayStr)) {
-    return { error: "Renewal day must be an integer between 1 and 31." };
-  }
-  const renewalDay = Number.parseInt(renewalDayStr, 10);
-  if (renewalDay < 1 || renewalDay > 31) {
-    return { error: "Renewal day must be an integer between 1 and 31." };
-  }
+  const cycleRaw = getString(form, "cycle");
+  const cycle: Cycle = cycleRaw === "yearly" ? "yearly" : "monthly";
 
-  return { sub: { name, cost, currency, category, renewalDay } };
+  const renewal = resolveRenewal(form, cycle);
+  if ("error" in renewal) return { error: renewal.error };
+
+  const sub: Subscription = {
+    name,
+    cost,
+    currency,
+    category,
+    cycle,
+    renewalDay: renewal.renewalDay,
+  };
+  if (renewal.renewalMonth !== undefined) sub.renewalMonth = renewal.renewalMonth;
+
+  return { sub };
 }
 
 export async function addSubscription(_prevState: AddState, formData: FormData): Promise<AddState> {
@@ -79,7 +125,7 @@ export async function removeSubscription(formData: FormData): Promise<void> {
 
   const subs = await loadSubscriptions();
   const next = subs.filter((s) => s.name.toLowerCase() !== name);
-  if (next.length === subs.length) return; // already gone
+  if (next.length === subs.length) return;
 
   await saveSubscriptions(next);
   revalidatePath("/");

@@ -271,3 +271,127 @@ describe('saveSubscriptions', () => {
     expect(parsed.subscriptions).toHaveLength(1);
   });
 });
+
+import { monthlyCost, yearlyCost } from './data';
+
+describe('monthlyCost / yearlyCost', () => {
+  it('treats a sub with no cycle as monthly', () => {
+    const sub = { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 5 };
+    expect(monthlyCost(sub)).toBe(10);
+    expect(yearlyCost(sub)).toBe(120);
+  });
+
+  it('treats cycle="monthly" the same as legacy', () => {
+    const sub = { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 5, cycle: 'monthly' as const };
+    expect(monthlyCost(sub)).toBe(10);
+    expect(yearlyCost(sub)).toBe(120);
+  });
+
+  it('divides by 12 for cycle="yearly" to get monthly', () => {
+    const sub = {
+      name: 'B',
+      cost: 99,
+      currency: 'USD',
+      category: 'x',
+      renewalDay: 15,
+      renewalMonth: 12,
+      cycle: 'yearly' as const,
+    };
+    expect(monthlyCost(sub)).toBeCloseTo(8.25, 2);
+    expect(yearlyCost(sub)).toBe(99);
+  });
+});
+
+describe('groupByCurrency with cycle', () => {
+  it('normalizes a yearly sub to monthly when summing totalMonthly', () => {
+    const subs = [
+      { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 1 },
+      { name: 'B', cost: 120, currency: 'USD', category: 'y', renewalDay: 1, renewalMonth: 6, cycle: 'yearly' as const },
+    ];
+    const [usd] = groupByCurrency(subs);
+    expect(usd.totalMonthly).toBeCloseTo(20, 2); // 10 + 120/12
+    expect(usd.totalYearly).toBeCloseTo(240, 2); // 20 * 12
+  });
+
+  it('uses monthly-equivalent in byCategory and bySubscription', () => {
+    const subs = [
+      { name: 'YearlySub', cost: 240, currency: 'USD', category: 'cat1', renewalDay: 1, renewalMonth: 1, cycle: 'yearly' as const },
+      { name: 'MonthlySub', cost: 5, currency: 'USD', category: 'cat2', renewalDay: 1 },
+    ];
+    const [usd] = groupByCurrency(subs);
+    // YearlySub monthly-equivalent = 240/12 = 20, beats MonthlySub at 5
+    expect(usd.bySubscription[0]).toEqual({ name: 'YearlySub', monthly: 20 });
+    expect(usd.bySubscription[1]).toEqual({ name: 'MonthlySub', monthly: 5 });
+    expect(usd.byCategory).toEqual([
+      { category: 'cat1', monthly: 20 },
+      { category: 'cat2', monthly: 5 },
+    ]);
+  });
+});
+
+describe('getUpcoming with yearly cycle', () => {
+  it('includes a yearly sub renewing in 5 days', () => {
+    const today = new Date(2026, 4, 10); // 2026-05-10
+    const subs = [
+      { name: 'Domain', cost: 12, currency: 'USD', category: 'x', renewalDay: 15, renewalMonth: 5, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-05-15');
+    expect(result[0].daysUntil).toBe(5);
+    expect(result[0].cost).toBe(12);
+  });
+
+  it('excludes a yearly sub when this year already passed (rolls to next year)', () => {
+    const today = new Date(2026, 4, 10); // May 10
+    const subs = [
+      { name: 'Old', cost: 50, currency: 'USD', category: 'x', renewalDay: 1, renewalMonth: 1, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([]); // next renewal is 2027-01-01, way more than 7 days
+  });
+
+  it('includes a yearly sub renewing today', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [
+      { name: 'Today', cost: 5, currency: 'USD', category: 'x', renewalDay: 10, renewalMonth: 5, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysUntil).toBe(0);
+    expect(result[0].date).toBe('2026-05-10');
+  });
+
+  it('clamps Feb 29 to Feb 28 in non-leap years', () => {
+    const today = new Date(2026, 1, 25); // 2026-02-25 (non-leap)
+    const subs = [
+      { name: 'Feb29', cost: 1, currency: 'USD', category: 'x', renewalDay: 29, renewalMonth: 2, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-02-28');
+    expect(result[0].daysUntil).toBe(3);
+  });
+
+  it('still works for monthly subs (regression check)', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [
+      { name: 'Monthly', cost: 5, currency: 'USD', category: 'x', renewalDay: 12 },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysUntil).toBe(2);
+  });
+
+  it('excludes yearly sub when renewalDay would match this month but renewalMonth is different', () => {
+    // today: May 10, 2026. yearly sub: Aug 12 renewal.
+    // Monthly-only logic would compute "May 12, 2 days away" and INCLUDE it.
+    // Correct yearly logic computes "Aug 12, ~94 days away" and EXCLUDES it.
+    const today = new Date(2026, 4, 10); // 2026-05-10
+    const subs = [
+      { name: 'Aug12', cost: 100, currency: 'USD', category: 'x', renewalDay: 12, renewalMonth: 8, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([]);
+  });
+});

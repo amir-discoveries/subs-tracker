@@ -16,7 +16,10 @@ export default async function Page() {
       <main className="min-h-screen p-6 md:p-10">
         <div className="mx-auto max-w-5xl space-y-8">
           <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-semibold tracking-tight">subs</h1>
+            <div>
+              <h1 className="text-3xl font-heading italic">subs</h1>
+              <p className="text-sm text-muted-foreground">your subscriptions, calmly tracked</p>
+            </div>
             <AddSubscriptionDialog />
           </div>
           <p className="text-center text-muted-foreground py-24">
@@ -32,9 +35,12 @@ export default async function Page() {
 
   return (
     <main className="min-h-screen p-6 md:p-10">
-      <div className="mx-auto max-w-5xl space-y-12">
+      <div className="mx-auto max-w-5xl space-y-16">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">subs</h1>
+          <div>
+            <h1 className="text-3xl font-heading italic">subs</h1>
+            <p className="text-sm text-muted-foreground">your subscriptions, calmly tracked</p>
+          </div>
           <AddSubscriptionDialog />
         </div>
         {buckets.map((b) => (
