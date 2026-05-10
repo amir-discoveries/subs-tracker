@@ -87,7 +87,7 @@ async function run(args, { store, io }) { ... }
 ## Command Behavior
 
 ### `subs add`
-Readline prompts in order: name, cost, currency (default `USD` — empty input accepts the default), category, renewal day (1–31). Each prompt re-asks on invalid input with a specific reason (e.g., "Cost must be a positive number"). Duplicate name → exits with error, no write. Whitespace is trimmed on string fields.
+Readline prompts in order: name, cost, currency (default `USD` — empty input accepts the default), category, renewal day (1–31). Each prompt re-asks on invalid input with a specific reason (e.g., "Cost must be a positive number"). Duplicate name (case-insensitive) → re-prompt with `"X" already exists.`, no write. If stdin closes before all prompts are answered (e.g., truncated piped input or Ctrl-D in a TTY), exit 1 with `Input ended before all prompts were answered.` Whitespace is trimmed on string fields.
 
 ### `subs list`
 Sorted by `cost` descending; ties are stable (original insertion order preserved).
