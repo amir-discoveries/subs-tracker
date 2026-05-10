@@ -382,4 +382,16 @@ describe('getUpcoming with yearly cycle', () => {
     expect(result).toHaveLength(1);
     expect(result[0].daysUntil).toBe(2);
   });
+
+  it('excludes yearly sub when renewalDay would match this month but renewalMonth is different', () => {
+    // today: May 10, 2026. yearly sub: Aug 12 renewal.
+    // Monthly-only logic would compute "May 12, 2 days away" and INCLUDE it.
+    // Correct yearly logic computes "Aug 12, ~94 days away" and EXCLUDES it.
+    const today = new Date(2026, 4, 10); // 2026-05-10
+    const subs = [
+      { name: 'Aug12', cost: 100, currency: 'USD', category: 'x', renewalDay: 12, renewalMonth: 8, cycle: 'yearly' as const },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([]);
+  });
 });
