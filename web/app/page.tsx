@@ -3,6 +3,8 @@ import { TotalsCards } from "@/components/totals-cards";
 import { CategoryPie } from "@/components/category-pie";
 import { CostBar } from "@/components/cost-bar";
 import { UpcomingList } from "@/components/upcoming-list";
+import { SubscriptionsTable } from "@/components/subscriptions-table";
+import { AddSubscriptionDialog } from "@/components/add-subscription-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -11,10 +13,16 @@ export default async function Page() {
 
   if (subs.length === 0) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-8">
-        <p className="text-center text-muted-foreground">
-          No subscriptions yet — run <code className="font-mono">subs add</code> to add one.
-        </p>
+      <main className="min-h-screen p-6 md:p-10">
+        <div className="mx-auto max-w-5xl space-y-8">
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-semibold tracking-tight">subs</h1>
+            <AddSubscriptionDialog />
+          </div>
+          <p className="text-center text-muted-foreground py-24">
+            No subscriptions yet — click <span className="font-medium">Add subscription</span> to get started.
+          </p>
+        </div>
       </main>
     );
   }
@@ -25,7 +33,10 @@ export default async function Page() {
   return (
     <main className="min-h-screen p-6 md:p-10">
       <div className="mx-auto max-w-5xl space-y-12">
-        <h1 className="text-2xl font-semibold tracking-tight">subs</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold tracking-tight">subs</h1>
+          <AddSubscriptionDialog />
+        </div>
         {buckets.map((b) => (
           <section key={b.currency} className="space-y-6">
             {buckets.length > 1 && (
@@ -42,6 +53,7 @@ export default async function Page() {
             </div>
           </section>
         ))}
+        <SubscriptionsTable subs={subs} />
         <UpcomingList items={upcoming} />
       </div>
     </main>
