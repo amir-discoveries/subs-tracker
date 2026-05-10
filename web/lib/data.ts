@@ -81,3 +81,59 @@ export function groupByCurrency(subs: Subscription[]): CurrencyBucket[] {
   result.sort((a, b) => b.totalMonthly - a.totalMonthly);
   return result;
 }
+
+export type UpcomingItem = {
+  name: string;
+  date: string;
+  daysUntil: number;
+  cost: number;
+  currency: string;
+};
+
+function daysInMonth(year: number, monthIndex: number): number {
+  return new Date(year, monthIndex + 1, 0).getDate();
+}
+
+function nextRenewal(renewalDay: number, today: Date): Date {
+  const year = today.getFullYear();
+  const month = today.getMonth();
+  const todayDay = today.getDate();
+  const thisMonthClamped = Math.min(renewalDay, daysInMonth(year, month));
+  if (todayDay <= thisMonthClamped) {
+    return new Date(year, month, thisMonthClamped);
+  }
+  const rawNextMonth = month + 1;
+  const nextYear = year + Math.floor(rawNextMonth / 12);
+  const nextMonth = rawNextMonth % 12;
+  const nextClamped = Math.min(renewalDay, daysInMonth(nextYear, nextMonth));
+  return new Date(nextYear, nextMonth, nextClamped);
+}
+
+function daysUntil(date: Date, today: Date): number {
+  const startToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const startTarget = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  return Math.round((startTarget.getTime() - startToday.getTime()) / (1000 * 60 * 60 * 24));
+}
+
+function formatDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+export function getUpcoming(subs: Subscription[], now: Date = new Date()): UpcomingItem[] {
+  return subs
+    .map((sub) => {
+      const date = nextRenewal(sub.renewalDay, now);
+      return {
+        name: sub.name,
+        date: formatDate(date),
+        daysUntil: daysUntil(date, now),
+        cost: sub.cost,
+        currency: sub.currency,
+      };
+    })
+    .filter((x) => x.daysUntil >= 0 && x.daysUntil <= 7)
+    .sort((a, b) => a.daysUntil - b.daysUntil);
+}

@@ -137,3 +137,66 @@ describe('groupByCurrency', () => {
     expect(groupByCurrency([])).toEqual([]);
   });
 });
+
+import { getUpcoming } from './data';
+
+describe('getUpcoming', () => {
+  it('includes a renewal due today (daysUntil 0)', () => {
+    const today = new Date(2026, 4, 10); // 2026-05-10
+    const subs = [{ name: 'A', cost: 5, currency: 'USD', category: 'x', renewalDay: 10 }];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([
+      { name: 'A', date: '2026-05-10', daysUntil: 0, cost: 5, currency: 'USD' },
+    ]);
+  });
+
+  it('includes a renewal exactly 7 days away', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [{ name: 'B', cost: 5, currency: 'USD', category: 'x', renewalDay: 17 }];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].daysUntil).toBe(7);
+  });
+
+  it('excludes a renewal 8 days away', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [{ name: 'C', cost: 5, currency: 'USD', category: 'x', renewalDay: 18 }];
+    const result = getUpcoming(subs, today);
+    expect(result).toEqual([]);
+  });
+
+  it('clamps renewalDay 31 to last day of February', () => {
+    const today = new Date(2026, 1, 25); // 2026-02-25 (non-leap)
+    const subs = [{ name: 'D', cost: 5, currency: 'USD', category: 'x', renewalDay: 31 }];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-02-28');
+    expect(result[0].daysUntil).toBe(3);
+  });
+
+  it('rolls into next month when today is past this-month renewal', () => {
+    const today = new Date(2026, 4, 28); // 2026-05-28
+    const subs = [{ name: 'E', cost: 5, currency: 'USD', category: 'x', renewalDay: 1 }];
+    const result = getUpcoming(subs, today);
+    expect(result).toHaveLength(1);
+    expect(result[0].date).toBe('2026-06-01');
+    expect(result[0].daysUntil).toBe(4);
+  });
+
+  it('sorts by daysUntil asc', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [
+      { name: 'In5', cost: 5, currency: 'USD', category: 'x', renewalDay: 15 },
+      { name: 'Today', cost: 5, currency: 'USD', category: 'x', renewalDay: 10 },
+      { name: 'In3', cost: 5, currency: 'USD', category: 'x', renewalDay: 13 },
+    ];
+    const result = getUpcoming(subs, today);
+    expect(result.map((r) => r.name)).toEqual(['Today', 'In3', 'In5']);
+  });
+
+  it('returns [] when nothing is in the next 7 days', () => {
+    const today = new Date(2026, 4, 10);
+    const subs = [{ name: 'Far', cost: 5, currency: 'USD', category: 'x', renewalDay: 25 }];
+    expect(getUpcoming(subs, today)).toEqual([]);
+  });
+});
