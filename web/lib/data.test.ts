@@ -271,3 +271,33 @@ describe('saveSubscriptions', () => {
     expect(parsed.subscriptions).toHaveLength(1);
   });
 });
+
+import { monthlyCost, yearlyCost } from './data';
+
+describe('monthlyCost / yearlyCost', () => {
+  it('treats a sub with no cycle as monthly', () => {
+    const sub = { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 5 };
+    expect(monthlyCost(sub)).toBe(10);
+    expect(yearlyCost(sub)).toBe(120);
+  });
+
+  it('treats cycle="monthly" the same as legacy', () => {
+    const sub = { name: 'A', cost: 10, currency: 'USD', category: 'x', renewalDay: 5, cycle: 'monthly' as const };
+    expect(monthlyCost(sub)).toBe(10);
+    expect(yearlyCost(sub)).toBe(120);
+  });
+
+  it('divides by 12 for cycle="yearly" to get monthly', () => {
+    const sub = {
+      name: 'B',
+      cost: 99,
+      currency: 'USD',
+      category: 'x',
+      renewalDay: 15,
+      renewalMonth: 12,
+      cycle: 'yearly' as const,
+    };
+    expect(monthlyCost(sub)).toBeCloseTo(8.25, 2);
+    expect(yearlyCost(sub)).toBe(99);
+  });
+});

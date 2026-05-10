@@ -2,14 +2,26 @@ import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 
+export type Cycle = "monthly" | "yearly";
+
 export type Subscription = {
   name: string;
   cost: number;
   currency: string;
   category: string;
   renewalDay: number;
+  cycle?: Cycle;
+  renewalMonth?: number;
   addedAt?: string;
 };
+
+export function monthlyCost(sub: Subscription): number {
+  return sub.cycle === "yearly" ? sub.cost / 12 : sub.cost;
+}
+
+export function yearlyCost(sub: Subscription): number {
+  return sub.cycle === "yearly" ? sub.cost : sub.cost * 12;
+}
 
 function resolvePath(explicit?: string): string {
   if (explicit) return explicit;
